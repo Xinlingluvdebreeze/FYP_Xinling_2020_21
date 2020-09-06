@@ -54,6 +54,7 @@ params     = list(values.values())
 inducer = 1
 
 #Solve ODE and generate Fig 2
+tspan= [0, 60, 120, 180, 240, 300, 360]
 model_data = odeint(model_1step, y_init, tspan, args=tuple([inducer, params]))
 y_model    = model_data[:,0]
 
