@@ -100,7 +100,8 @@ def map_to_source_well(aligned_inputs):
             print(f'Place {fragment} in source well {alphabets[alphabet_count]}{column_count}')
             column_count+=1
         alphabet_count+=1
-        
+     
+    #still editing
 def map_to_output_well(aligned_inputs,protocol):
     global alphabets
     
