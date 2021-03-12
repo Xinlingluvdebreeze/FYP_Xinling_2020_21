@@ -9,6 +9,7 @@ import itertools as it
 import os
 import yaml      as ya
 from   pathlib import Path
+import math
 
 #You need this for accessing HiPAD from this folder
 import addpath
@@ -20,6 +21,14 @@ import HiPAD.sort_align as san
 #Globals
 ###############################################################################
 alphabets = ['A','B','C','D','E','F','G','H']
+position_in_96_well = ['A1','A2','A3','A4','A5','A6','A7','A8','A9','A10','A11','A12',
+                       'B1','B2','B3','B4','B5','B6','B7','B8','B9','B10','B11','B12',
+                       'C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12',
+                       'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12',
+                       'E1','E2','E3','E4','E5','E6','E7','E8','E9','E10','E11','E12',
+                       'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+                       'G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12',
+                       'H1','H2','H3','H4','H5','H6','H7','H8','H9','H10','H11','H12']
     
 def checks(stage):
     #First, make sure the stage is not empty
@@ -69,7 +78,9 @@ def align_inputs(all_inputs):
                 aligned_inputs[i].append(position[i])
             else: 
                 pass
-
+            
+    print(f'aligned_inputs before: {aligned_inputs}\n')
+    
     #Finally, sort each lst in aligned_inputs so we no longer care about the 
     #initial order
     aligned_inputs = [sorted(lst) for lst in aligned_inputs]
@@ -91,6 +102,7 @@ def choose_script(protocol_type):
     return script_info
     
     #edit the code in this function to return instead of printing
+    #ensure column_count doesn't exceed 12
 def map_to_source_well(aligned_inputs):
     global alphabets
     alphabet_count = 0
@@ -100,10 +112,10 @@ def map_to_source_well(aligned_inputs):
             print(f'Place {fragment} in source well {alphabets[alphabet_count]}{column_count}')
             column_count+=1
         alphabet_count+=1
-     
-    #still editing
+        
 def map_to_output_well(aligned_inputs,protocol):
     global alphabets
+    global position_in_96_well
     
     #No. of rows of input in source plate
     n_input_row = len(protocol)
@@ -137,32 +149,67 @@ def map_to_output_well(aligned_inputs,protocol):
     reagents_fill_order.append(1) 
     print('Reagent fill order:')
     print(reagents_fill_order)
+    print('')
     
     #Use reagents_fill_order to append fragment in output_list
-    #first approach: identify row and frag and slot in output_list
-    #second approach: loop output_list then pick row and frag
-    fill_interval = 0
-    row = 0
-    for position in aligned_inputs:
-        fill_interval = reagents_fill_order[row]
-        print(fill_interval)
-        for fragment in position:
-            
-        row+=1
-       
-        
-    print(output_list)
     
-    '''
-    for i in range(0,n_output):  #think about fill interval?
-                
-                if len(output_list[i])<row+1 and count==0:
-                    output_list[i].append(fragment) #able to append fill_interval times?
-                    count+=1
-    '''
+
+    for i in range(n_input_row):
+        count = 0
+        max_fill = 0
+        change_fragment=0
+        while count<n_output:
+            if max_fill<reagents_fill_order[i]:
+                output_list[count].append(aligned_inputs[i][change_fragment])
+                count+=1
+                max_fill+=1
+            elif change_fragment<protocol[i]-1: #change_fragment should not excess fragments in respective row
+                change_fragment+=1
+                max_fill = 0
+            else:
+                change_fragment=0
+                max_fill = 0
+   
+
+    print('output list')
+    print(output_list)
+    print('')
+    
+    
+    #Determine plate number and arrange output_list in rows (check if this is correct later)
+    plate_num = 1
+    position_count = 0
+    position_list = []
+    for i in range(n_output):
+        position_list.append([])
+    
+    for i in range(n_output):
+        if position_count>95:
+            plate_num = math.ceil(i+1/96)
+            position_count=i-96
+        position_list[i].append('Plate ' + str(plate_num))
+        position_list[i].append(position_in_96_well[i])
+        position_count+=1
+     
+        
+    print('position list')
+    print(position_list)
+    print('')
+    
+    #Match output list to plasmid number, need to edit this later
+    track = 0
+    for variant in output_list:
+        if variant in all_inputs:
+            position_list[track].append(output_list[track])
+        track+=1
+        
+    print('position list after')
+    print(position_list)
+    print('')
+    
 if __name__ == '__main__':
     #Use the function I have written to sort the steps
-    yamldict = san.read_yaml('steps_3.yaml')
+    yamldict = san.read_yaml('steps_1.yaml')
     stages   = san.sort_align(yamldict)#, _store=lambda temp, step: temp.append(step['step_num']))
 
     #For now let's start small
@@ -178,8 +225,9 @@ if __name__ == '__main__':
 
     all_inputs = get_inputs(stage)
     
-    #Test case 1
+    #Test cases
     #all_inputs = [['1','4','1','5'],['2','4','2','5'],['3','4','3','5']]
+    #all_inputs = [['2','1'],['3','1'],['2','4'],['5','4']]
     print(f'all_inputs: {all_inputs}\n')
     
     aligned_inputs = align_inputs(all_inputs)
@@ -194,7 +242,4 @@ if __name__ == '__main__':
     
     print('Output plate')
     map_to_output_well(aligned_inputs,protocol)
-
- 
-    
     
